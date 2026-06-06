@@ -168,7 +168,7 @@ MonoBehaviour:
   type: 1
   amount: 1
   rotationSpeed: 60
-  collectSFX: {fileID: 0}
+  collectSFX: {fileID: 8300000, guid: 80e44ccbff7834cd3bbec00bd25312a2, type: 3}
   collectShrinkTime: 0.25
 --- !u!1001 &8055000303187875892
 PrefabInstance:

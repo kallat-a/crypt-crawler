@@ -2043,8 +2043,11 @@ MonoBehaviour:
   healthBar: {fileID: 123075972910031341}
   deathAnimTime: 3.333
   deathShrinkTime: 0.35
-  deathSFX: {fileID: 0}
-  dropOnDeath: {fileID: 0}
+  deathSFX: {fileID: 8300000, guid: 557e15a7ed69544d09d4c5f429d506ba, type: 3}
+  possibleDrops:
+  - {fileID: 7859597006823311159, guid: 4787ffb990491f1489575e4d09a0860a, type: 3}
+  - {fileID: 7859597006823311159, guid: 11f1bd16d0da2b64daaf4de74d13437b, type: 3}
+  dropChance: 0.45
 --- !u!136 &9177914507653954480
 CapsuleCollider:
   m_ObjectHideFlags: 0

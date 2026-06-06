@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.AI;
 using UnityEngine.UI;
+using System.Collections;
 
 // Zombie enemy for Crypt Crawler. NavMeshAgent chase, interval contact damage,
 // floating health bar, death animation (falls back to a shrink tween if no
@@ -24,7 +25,11 @@ public class ZombieBehavior : MonoBehaviour
     public float deathAnimTime = 2f;     // match the Dying clip length
     public float deathShrinkTime = 0.35f; // fallback tween if no death anim
     public AudioClip deathSFX;
-    public GameObject dropOnDeath;       // optional loot drop
+
+    [Header("Drops")]
+    public GameObject[] possibleDrops;
+    [Range(0f, 1f)]
+    public float dropChance = 0.35f;
 
     private NavMeshAgent agent;
     private Animator animator;
@@ -135,10 +140,10 @@ public class ZombieBehavior : MonoBehaviour
             AudioSource.PlayClipAtPoint(deathSFX, transform.position);
         }
 
-        if (dropOnDeath != null)
+        if (possibleDrops != null && possibleDrops.Length > 0 && Random.value <= dropChance)
         {
-            Instantiate(dropOnDeath, transform.position + Vector3.up * 0.5f,
-                        Quaternion.identity);
+            GameObject drop = possibleDrops[Random.Range(0, possibleDrops.Length)];
+            Instantiate(drop, transform.position + Vector3.up * 0.5f, Quaternion.identity);
         }
 
         // Tell the manager so it can track remaining zombies / spawn the key.
@@ -180,7 +185,7 @@ public class ZombieBehavior : MonoBehaviour
         return false;
     }
 
-    System.Collections.IEnumerator ShrinkAndDestroy()
+    IEnumerator ShrinkAndDestroy()
     {
         Vector3 startScale = transform.localScale;
         float elapsed = 0f;

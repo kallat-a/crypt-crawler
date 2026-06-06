@@ -1,4 +1,5 @@
 using UnityEngine;
+using System.Collections;
 
 // Melee attack for Crypt Crawler. On left-click the player faces the mouse,
 // swings, and damages every enemy inside a short arc in front of them.
@@ -19,11 +20,13 @@ public class MeleeAttack : MonoBehaviour
     private Animator animator;
     private float cooldownTimer = 0f;
     private float faceLockTimer = 0f;
+    private Renderer[] playerRenderers;
 
     void Start()
     {
         crawler = GetComponent<CrawlerController>();
         animator = GetComponent<Animator>();
+        playerRenderers = GetComponentsInChildren<Renderer>();
     }
 
     void Update()
@@ -109,5 +112,25 @@ public class MeleeAttack : MonoBehaviour
 
         point = Vector3.zero;
         return false;
+    }
+
+    public void ApplyStrengthBoost(int bonus, float duration)
+    {
+        StartCoroutine(StrengthBoostRoutine(bonus, duration));
+    }
+
+    IEnumerator StrengthBoostRoutine(int bonus, float duration)
+    {
+        damage += bonus;
+        SetTint(new Color(1f, 0.1f, 0.1f));
+        yield return new WaitForSeconds(duration);
+        damage -= bonus;
+        SetTint(Color.white);
+    }
+
+    void SetTint(Color color)
+    {
+        foreach (Renderer r in playerRenderers)
+            r.material.color = color;
     }
 }

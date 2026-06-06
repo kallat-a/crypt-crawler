@@ -1,11 +1,12 @@
 using UnityEngine;
+using System.Collections;
 
 // Typed pickup for Crypt Crawler: gold (score), the level key, or health.
 // Spins in place; on player touch it applies its effect, plays a sound, and
 // shrinks out with a code-driven tween. Ammo type arrives with throwables in FP3.
 public class ResourcePickup : MonoBehaviour
 {
-    public enum PickupType { Gold, Key, Health }
+    public enum PickupType { Gold, Key, Health, Speed, Strength }
 
     [Header("Pickup Settings")]
     public PickupType type = PickupType.Gold;
@@ -64,11 +65,20 @@ public class ResourcePickup : MonoBehaviour
                 PlayerVitals vitals = playerCollider.GetComponent<PlayerVitals>();
                 if (vitals != null) vitals.Heal(amount);
                 break;
+            case PickupType.Speed:
+                CrawlerController crawler = playerCollider.GetComponent<CrawlerController>();
+                if (crawler != null) crawler.ApplySpeedBoost(2f, 5f);
+                break;
+
+            case PickupType.Strength:
+                MeleeAttack melee = playerCollider.GetComponent<MeleeAttack>();
+                if (melee != null) melee.ApplyStrengthBoost(25, 5f);
+                break;
         }
     }
 
     // Code-driven collect animation: scale to zero over collectShrinkTime.
-    System.Collections.IEnumerator ShrinkAndDestroy()
+    IEnumerator ShrinkAndDestroy()
     {
         Vector3 startScale = transform.localScale;
         float elapsed = 0f;

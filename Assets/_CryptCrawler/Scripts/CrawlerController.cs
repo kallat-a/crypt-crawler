@@ -1,4 +1,5 @@
 using UnityEngine;
+using System.Collections;
 
 // Top-down player controller for Crypt Crawler.
 // WASD movement relative to the camera's facing; the character rotates to face
@@ -9,6 +10,7 @@ public class CrawlerController : MonoBehaviour
 {
     public float speed = 5f;
     public float gravity = 9.81f;
+    public float jumpForce = 5f;
     public float rotationSmoothTime = 0.08f;
     public Transform cameraTransform;
 
@@ -16,6 +18,7 @@ public class CrawlerController : MonoBehaviour
     private Animator animator;
     private float rotationVelocity;
     private float verticalVelocity;
+    private Renderer[] playerRenderers;
 
     // While true, movement does NOT rotate the character (MeleeAttack owns
     // facing during a swing so the player attacks toward the mouse).
@@ -25,6 +28,7 @@ public class CrawlerController : MonoBehaviour
     {
         controller = GetComponent<CharacterController>();
         animator = GetComponent<Animator>();
+        playerRenderers = GetComponentsInChildren<Renderer>();
 
         if (cameraTransform == null)
         {
@@ -65,6 +69,10 @@ public class CrawlerController : MonoBehaviour
         if (controller.isGrounded)
         {
             verticalVelocity = -1f;
+            if (Input.GetButtonDown("Jump"))
+            {
+                verticalVelocity = jumpForce;
+            }
         }
         else
         {
@@ -90,5 +98,25 @@ public class CrawlerController : MonoBehaviour
         {
             transform.rotation = Quaternion.LookRotation(lookDirection);
         }
+    }
+    
+    public void ApplySpeedBoost(float multiplier, float duration)
+    {
+        StartCoroutine(SpeedBoostRoutine(multiplier, duration));
+    }
+
+    IEnumerator SpeedBoostRoutine(float multiplier, float duration)
+    {
+        speed *= multiplier;
+        SetTint(new Color(0.6f, 0f, 1f));
+        yield return new WaitForSeconds(duration);
+        speed /= multiplier;
+        SetTint(Color.white);
+    }
+
+    void SetTint(Color color)
+    {
+        foreach (Renderer r in playerRenderers)
+            r.material.color = color;
     }
 }

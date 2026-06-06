@@ -27,6 +27,7 @@ public class DungeonManager : MonoBehaviour
     [Header("Flow")]
     public string nextLevelName;
     public float winAdvanceDelay = 3f;
+    public bool isLastLevel = false;
 
     public static bool IsPlaying { get; private set; }
 
@@ -120,7 +121,7 @@ public class DungeonManager : MonoBehaviour
         IsPlaying = false;
 
         PlaySound(winSFX);
-        ShowMessage("Level Complete!");
+        ShowMessage(isLastLevel ? "The Crypt is Conquered!" : "Level Complete!");
 
         if (!string.IsNullOrEmpty(nextLevelName))
         {
