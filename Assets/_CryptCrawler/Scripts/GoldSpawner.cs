@@ -11,7 +11,8 @@ public class GoldSpawner : MonoBehaviour
     [Header("Spawning")]
     public GameObject goldPrefab;        // GoldPickup prefab
     public float spawnInterval = 5f;
-    [Range(0f, 1f)] public float spawnChance = 0.5f;
+    [Range(0f, 1f)]
+    public float spawnChance = 0.5f;
     public int maxActiveGold = 8;
 
     [Header("Placement")]

@@ -25,8 +25,12 @@ public class DungeonManager : MonoBehaviour
     public TMP_Text goldText;
     public TMP_Text objectiveText;
     public TMP_Text messageText;
+    public TMP_Text levelText;
     public GameObject deathPanel;        // holds Restart + Main Menu buttons
     public GameObject winPanel;          // holds Play Again button (final level)
+
+    [Header("Level Info")]
+    public string levelDisplayName = "Level 1";
 
     [Header("Key Spawn (Level 1 mode)")]
     public GameObject keyPrefab;
@@ -69,6 +73,8 @@ public class DungeonManager : MonoBehaviour
         BossDead = false;
         ended = false;
         gold = 0;
+
+        if (levelText != null) levelText.text = levelDisplayName;
 
         UpdateGoldText();
 
