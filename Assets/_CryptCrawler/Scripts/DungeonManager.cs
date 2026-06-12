@@ -14,7 +14,11 @@ public class DungeonManager : MonoBehaviour
     public TMP_Text goldText;
     public TMP_Text objectiveText;
     public TMP_Text messageText;
+    public TMP_Text levelText;
     public GameObject respawnButton;     // hidden until the player dies
+
+    [Header("Level Info")]
+    public string levelDisplayName = "Level 1";
 
     [Header("Key Spawn")]
     public GameObject keyPrefab;         // KeyPickup prefab
@@ -51,6 +55,8 @@ public class DungeonManager : MonoBehaviour
         gold = 0;
 
         zombiesRemaining = GameObject.FindGameObjectsWithTag("Enemy").Length;
+
+        if (levelText != null) levelText.text = levelDisplayName;
 
         UpdateGoldText();
         SetObjective("Slay the undead. (" + zombiesRemaining + " remaining)");

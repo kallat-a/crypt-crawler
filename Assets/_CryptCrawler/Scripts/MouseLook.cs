@@ -15,6 +15,8 @@ public class MouseLook : MonoBehaviour
     {
         playerBody = transform.parent.transform;
 
+        mouseSensitivity = PlayerPrefs.GetFloat("MouseSensitivity", 100f);
+
         Cursor.visible = false;
         Cursor.lockState = CursorLockMode.Locked;
     }
@@ -27,12 +29,13 @@ public class MouseLook : MonoBehaviour
 
         // yaw at the player
         if (playerBody)
+        {
             playerBody.Rotate(Vector3.up * moveX);
+        }
 
         // pitch at the camera
         pitch -= moveY;
         pitch = Mathf.Clamp(pitch, pitchMin, pitchMax);
         transform.localRotation = Quaternion.Euler(pitch, 0, 0);
-        Debug.Log("moveX: " + moveX);
     }
 }

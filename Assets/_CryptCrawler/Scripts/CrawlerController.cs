@@ -20,9 +20,8 @@ public class CrawlerController : MonoBehaviour
     private float verticalVelocity;
     private Renderer[] playerRenderers;
 
-    // While true, movement does NOT rotate the character (MeleeAttack owns
-    // facing during a swing so the player attacks toward the mouse).
     public bool FaceMouseLock { get; set; }
+    public float SpeedBoostRemaining { get; private set; } = 0f;
 
     void Start()
     {
@@ -38,7 +37,10 @@ public class CrawlerController : MonoBehaviour
 
     void Update()
     {
-        if (!DungeonManager.IsPlaying) return;
+        if (!DungeonManager.IsPlaying)
+        {
+            return;
+        }
 
         float horizontal = Input.GetAxis("Horizontal");
         float vertical = Input.GetAxis("Vertical");
@@ -85,7 +87,14 @@ public class CrawlerController : MonoBehaviour
         // Drive the Animator: 0 = idle, 1 = run. MeleeAttack sets the attack trigger.
         if (animator != null)
         {
-            animator.SetInteger("animState", moveDirection.sqrMagnitude > 0.001f ? 1 : 0);
+            if (moveDirection.sqrMagnitude > 0.001f)
+            {
+                animator.SetInteger("animState", 1);
+            }
+            else
+            {
+                animator.SetInteger("animState", 0);
+            }
         }
     }
 
@@ -109,7 +118,13 @@ public class CrawlerController : MonoBehaviour
     {
         speed *= multiplier;
         SetTint(new Color(0.6f, 0f, 1f));
-        yield return new WaitForSeconds(duration);
+        SpeedBoostRemaining = duration;
+        while (SpeedBoostRemaining > 0f)
+        {
+            SpeedBoostRemaining -= Time.deltaTime;
+            yield return null;
+        }
+        SpeedBoostRemaining = 0f;
         speed /= multiplier;
         SetTint(Color.white);
     }
@@ -117,6 +132,8 @@ public class CrawlerController : MonoBehaviour
     void SetTint(Color color)
     {
         foreach (Renderer r in playerRenderers)
+        {
             r.material.color = color;
+        }
     }
 }

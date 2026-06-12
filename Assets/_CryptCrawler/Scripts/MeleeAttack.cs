@@ -16,6 +16,8 @@ public class MeleeAttack : MonoBehaviour
     [Header("Audio")]
     public AudioClip swingSFX;
 
+    public float StrengthBoostRemaining { get; private set; } = 0f;
+
     private CrawlerController crawler;
     private Animator animator;
     private float cooldownTimer = 0f;
@@ -31,7 +33,10 @@ public class MeleeAttack : MonoBehaviour
 
     void Update()
     {
-        if (!DungeonManager.IsPlaying) return;
+        if (!DungeonManager.IsPlaying)
+        {
+            return;
+        }
 
         if (cooldownTimer > 0f)
         {
@@ -80,7 +85,10 @@ public class MeleeAttack : MonoBehaviour
         Collider[] hits = Physics.OverlapSphere(transform.position, range);
         foreach (Collider hit in hits)
         {
-            if (!hit.CompareTag("Enemy")) continue;
+            if (!hit.CompareTag("Enemy"))
+            {
+                continue;
+            }
 
             Vector3 toEnemy = hit.transform.position - transform.position;
             toEnemy.y = 0f;
@@ -123,7 +131,13 @@ public class MeleeAttack : MonoBehaviour
     {
         damage += bonus;
         SetTint(new Color(1f, 0.1f, 0.1f));
-        yield return new WaitForSeconds(duration);
+        StrengthBoostRemaining = duration;
+        while (StrengthBoostRemaining > 0f)
+        {
+            StrengthBoostRemaining -= Time.deltaTime;
+            yield return null;
+        }
+        StrengthBoostRemaining = 0f;
         damage -= bonus;
         SetTint(Color.white);
     }
@@ -131,6 +145,8 @@ public class MeleeAttack : MonoBehaviour
     void SetTint(Color color)
     {
         foreach (Renderer r in playerRenderers)
+        {
             r.material.color = color;
+        }
     }
 }
