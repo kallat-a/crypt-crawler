@@ -2,16 +2,23 @@ using UnityEngine;
 using System.Collections;
 
 // Melee attack for Crypt Crawler. On left-click the player faces the mouse,
-// swings, and damages every enemy inside a short arc in front of them.
+// swings, and damages every enemy inside a forgiving wedge in front of them.
+//
+// FP3 hitbox fix (TA feedback): the old version measured distance/angle from
+// the player's PIVOT to the enemy's PIVOT, so tall models or fast movers were
+// missed. Now it uses each enemy collider's CLOSEST POINT to the player, checks
+// that point against the swing range, and uses a generous angle. Also damages
+// the boss, not just zombies.
 [RequireComponent(typeof(CrawlerController))]
 public class MeleeAttack : MonoBehaviour
 {
     [Header("Attack Settings")]
     public int damage = 25;
-    public float range = 1.8f;          // how far the swing reaches
-    public float arcAngle = 100f;       // total arc width in degrees
+    public float range = 2.4f;          // reach (slightly longer than before)
+    public float radius = 1.0f;         // forgiveness around the swing center
+    public float arcAngle = 140f;       // wider wedge than before
     public float cooldown = 0.6f;
-    public float faceLockDuration = 0.25f; // how long the swing owns facing
+    public float faceLockDuration = 0.25f;
 
     [Header("Audio")]
     public AudioClip swingSFX;
@@ -33,18 +40,12 @@ public class MeleeAttack : MonoBehaviour
     {
         if (!DungeonManager.IsPlaying) return;
 
-        if (cooldownTimer > 0f)
-        {
-            cooldownTimer -= Time.deltaTime;
-        }
+        if (cooldownTimer > 0f) cooldownTimer -= Time.deltaTime;
 
         if (faceLockTimer > 0f)
         {
             faceLockTimer -= Time.deltaTime;
-            if (faceLockTimer <= 0f)
-            {
-                crawler.FaceMouseLock = false;
-            }
+            if (faceLockTimer <= 0f) crawler.FaceMouseLock = false;
         }
 
         if (Input.GetButtonDown("Fire1") && cooldownTimer <= 0f)
@@ -57,7 +58,6 @@ public class MeleeAttack : MonoBehaviour
     {
         cooldownTimer = cooldown;
 
-        // Face the point under the mouse so the player attacks where they aim.
         Vector3 mousePoint;
         if (TryGetMouseGroundPoint(out mousePoint))
         {
@@ -66,38 +66,58 @@ public class MeleeAttack : MonoBehaviour
             faceLockTimer = faceLockDuration;
         }
 
-        if (animator != null)
-        {
-            animator.SetTrigger("attack");
-        }
+        if (animator != null) animator.SetTrigger("attack");
+        if (swingSFX != null) AudioSource.PlayClipAtPoint(swingSFX, transform.position);
 
-        if (swingSFX != null)
-        {
-            AudioSource.PlayClipAtPoint(swingSFX, transform.position);
-        }
+        // The swing is centered slightly in front of the player.
+        Vector3 swingCenter = transform.position + transform.forward * (range * 0.5f)
+                              + Vector3.up * 0.5f;
 
-        // Hit detection: every enemy collider within range AND inside the arc.
-        Collider[] hits = Physics.OverlapSphere(transform.position, range);
+        // Overlap a sphere around the swing center: generous, catches tall and
+        // fast enemies the old pivot-to-pivot check missed.
+        Collider[] hits = Physics.OverlapSphere(swingCenter, range * 0.5f + radius);
+
+        // Track enemies we've already damaged this swing (models can have
+        // multiple colliders).
+        var damaged = new System.Collections.Generic.HashSet<GameObject>();
+
         foreach (Collider hit in hits)
         {
             if (!hit.CompareTag("Enemy")) continue;
 
-            Vector3 toEnemy = hit.transform.position - transform.position;
+            GameObject root = hit.transform.root.gameObject;
+            if (damaged.Contains(root)) continue;
+
+            // Use the collider's CLOSEST point to the player for direction, so a
+            // tall model whose pivot is at the feet still registers.
+            Vector3 closest = hit.ClosestPoint(transform.position);
+            Vector3 toEnemy = closest - transform.position;
             toEnemy.y = 0f;
 
-            if (Vector3.Angle(transform.forward, toEnemy) <= arcAngle * 0.5f)
+            // Wide wedge in front; if the enemy is basically on top of us, skip
+            // the angle check entirely (point-blank always hits).
+            bool pointBlank = toEnemy.magnitude < 0.75f;
+            if (!pointBlank && Vector3.Angle(transform.forward, toEnemy) > arcAngle * 0.5f)
+                continue;
+
+            // Damage zombies OR the boss.
+            ZombieBehavior zombie = root.GetComponent<ZombieBehavior>();
+            if (zombie != null)
             {
-                ZombieBehavior zombie = hit.GetComponent<ZombieBehavior>();
-                if (zombie != null)
-                {
-                    zombie.TakeDamage(damage);
-                }
+                zombie.TakeDamage(damage);
+                damaged.Add(root);
+                continue;
+            }
+
+            BossBehavior boss = root.GetComponent<BossBehavior>();
+            if (boss != null)
+            {
+                boss.TakeDamage(damage);
+                damaged.Add(root);
             }
         }
     }
 
-    // Raycast from the camera through the mouse onto the ground plane at the
-    // player's height. Works regardless of what the ray actually hits.
     bool TryGetMouseGroundPoint(out Vector3 point)
     {
         Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
