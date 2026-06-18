@@ -1,25 +1,45 @@
 using UnityEngine;
 using UnityEngine.UI;
+using TMPro;
 
-// Player health for Crypt Crawler: HP, damage, healing, health bar UI.
-// On death: plays the knight's death animation (if a "die" trigger exists on
-// the Animator) and tells the DungeonManager to run the level-lost flow.
 public class PlayerVitals : MonoBehaviour
 {
     public int maxHealth = 100;
     public Slider healthSlider;
     public AudioClip hurtSFX;
+    public float healthBarLerpSpeed = 5f;
 
     public static bool IsAlive { get; private set; }
 
     private int currentHealth;
+    private float displayedHealth;
     private Animator animator;
+    private TMP_Text healthValueText;
 
     void Start()
     {
         currentHealth = maxHealth;
+        displayedHealth = currentHealth;
         IsAlive = true;
         animator = GetComponent<Animator>();
+
+        GameObject hvGo = GameObject.Find("HealthValueText");
+        if (hvGo != null)
+        {
+            healthValueText = hvGo.GetComponent<TMP_Text>();
+        }
+
+        if (healthValueText != null)
+        {
+            if (PlayerPrefs.GetInt("ShowHealthValues", 1) == 1)
+            {
+                healthValueText.gameObject.SetActive(true);
+            }
+            else
+            {
+                healthValueText.gameObject.SetActive(false);
+            }
+        }
 
         if (healthSlider != null)
         {
@@ -28,9 +48,24 @@ public class PlayerVitals : MonoBehaviour
         UpdateHealthSlider();
     }
 
+    void Update()
+    {
+        if (healthSlider == null)
+        {
+            return;
+        }
+
+        // creates a smooth effect when health is added or removed by lerping the health bar to the actual health
+        displayedHealth = Mathf.Lerp(displayedHealth, currentHealth, healthBarLerpSpeed * Time.deltaTime);
+        healthSlider.value = displayedHealth;
+    }
+
     public void TakeDamage(int amount)
     {
-        if (!IsAlive) return;
+        if (!IsAlive)
+        {
+            return;
+        }
 
         currentHealth -= amount;
         currentHealth = Mathf.Clamp(currentHealth, 0, maxHealth);
@@ -50,7 +85,10 @@ public class PlayerVitals : MonoBehaviour
 
     public void Heal(int amount)
     {
-        if (!IsAlive) return;
+        if (!IsAlive)
+        {
+            return;
+        }
 
         currentHealth += amount;
         currentHealth = Mathf.Clamp(currentHealth, 0, maxHealth);
@@ -59,7 +97,6 @@ public class PlayerVitals : MonoBehaviour
 
     void Die()
     {
-        // Play the death animation if the Animator has a "die" trigger.
         if (animator != null)
         {
             foreach (AnimatorControllerParameter parameter in animator.parameters)
@@ -83,7 +120,12 @@ public class PlayerVitals : MonoBehaviour
     {
         if (healthSlider != null)
         {
-            healthSlider.value = currentHealth;
+            healthSlider.value = displayedHealth;
+        }
+
+        if (healthValueText != null && healthValueText.gameObject.activeSelf)
+        {
+            healthValueText.text = currentHealth + " / " + maxHealth;
         }
     }
 }

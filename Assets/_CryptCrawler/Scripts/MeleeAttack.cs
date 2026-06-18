@@ -1,27 +1,22 @@
 using UnityEngine;
 using System.Collections;
+using System.Collections.Generic;
 
-// Melee attack for Crypt Crawler. On left-click the player faces the mouse,
-// swings, and damages every enemy inside a forgiving wedge in front of them.
-//
-// FP3 hitbox fix (TA feedback): the old version measured distance/angle from
-// the player's PIVOT to the enemy's PIVOT, so tall models or fast movers were
-// missed. Now it uses each enemy collider's CLOSEST POINT to the player, checks
-// that point against the swing range, and uses a generous angle. Also damages
-// the boss, not just zombies.
 [RequireComponent(typeof(CrawlerController))]
 public class MeleeAttack : MonoBehaviour
 {
     [Header("Attack Settings")]
     public int damage = 25;
-    public float range = 2.4f;          // reach (slightly longer than before)
-    public float radius = 1.0f;         // forgiveness around the swing center
-    public float arcAngle = 140f;       // wider wedge than before
+    public float range = 2.4f;
+    public float radius = 1.0f;
+    public float arcAngle = 140f;
     public float cooldown = 0.6f;
     public float faceLockDuration = 0.25f;
 
     [Header("Audio")]
     public AudioClip swingSFX;
+
+    public float StrengthBoostRemaining { get; private set; } = 0f;
 
     private CrawlerController crawler;
     private Animator animator;
@@ -38,14 +33,23 @@ public class MeleeAttack : MonoBehaviour
 
     void Update()
     {
-        if (!DungeonManager.IsPlaying) return;
+        if (!DungeonManager.IsPlaying)
+        {
+            return;
+        }
 
-        if (cooldownTimer > 0f) cooldownTimer -= Time.deltaTime;
+        if (cooldownTimer > 0f)
+        {
+            cooldownTimer -= Time.deltaTime;
+        }
 
         if (faceLockTimer > 0f)
         {
             faceLockTimer -= Time.deltaTime;
-            if (faceLockTimer <= 0f) crawler.FaceMouseLock = false;
+            if (faceLockTimer <= 0f)
+            {
+                crawler.FaceMouseLock = false;
+            }
         }
 
         if (Input.GetButtonDown("Fire1") && cooldownTimer <= 0f)
@@ -66,54 +70,69 @@ public class MeleeAttack : MonoBehaviour
             faceLockTimer = faceLockDuration;
         }
 
-        if (animator != null) animator.SetTrigger("attack");
-        if (swingSFX != null) AudioSource.PlayClipAtPoint(swingSFX, transform.position);
+        if (animator != null)
+        {
+            animator.SetTrigger("attack");
+        }
+        if (swingSFX != null)
+        {
+            AudioSource.PlayClipAtPoint(swingSFX, transform.position);
+        }
 
-        // The swing is centered slightly in front of the player.
-        Vector3 swingCenter = transform.position + transform.forward * (range * 0.5f)
-                              + Vector3.up * 0.5f;
+        // to offset the swing area sphere upward so it hits at chest height instead of the ground
+        Vector3 swingCenter = transform.position + transform.forward * (range * 0.5f) + Vector3.up * 0.5f;
 
-        // Overlap a sphere around the swing center: generous, catches tall and
-        // fast enemies the old pivot-to-pivot check missed.
         Collider[] hits = Physics.OverlapSphere(swingCenter, range * 0.5f + radius);
 
-        // Track enemies we've already damaged this swing (models can have
-        // multiple colliders).
-        var damaged = new System.Collections.Generic.HashSet<GameObject>();
+        // stores the enemies who have already been damaged to avoid damaging them again for the same hit
+        List<GameObject> damaged = new List<GameObject>();
 
         foreach (Collider hit in hits)
         {
-            if (!hit.CompareTag("Enemy")) continue;
+            ZombieBehavior zombie = hit.GetComponentInParent<ZombieBehavior>();
+            BossBehavior boss = hit.GetComponentInParent<BossBehavior>();
+            if (zombie == null && boss == null)
+            {
+                continue;
+            }
 
-            GameObject root = hit.transform.root.gameObject;
-            if (damaged.Contains(root)) continue;
+            GameObject target;
+            if (zombie != null)
+            {
+                target = zombie.gameObject;
+            }
+            else
+            {
+                target = boss.gameObject;
+            }
 
-            // Use the collider's CLOSEST point to the player for direction, so a
-            // tall model whose pivot is at the feet still registers.
+            if (damaged.Contains(target))
+            {
+                continue;
+            }
+
             Vector3 closest = hit.ClosestPoint(transform.position);
             Vector3 toEnemy = closest - transform.position;
             toEnemy.y = 0f;
 
-            // Wide wedge in front; if the enemy is basically on top of us, skip
-            // the angle check entirely (point-blank always hits).
+            // determines whether the enemy is within a distance where it can be attacked
             bool pointBlank = toEnemy.magnitude < 0.75f;
             if (!pointBlank && Vector3.Angle(transform.forward, toEnemy) > arcAngle * 0.5f)
-                continue;
-
-            // Damage zombies OR the boss.
-            ZombieBehavior zombie = root.GetComponent<ZombieBehavior>();
-            if (zombie != null)
             {
-                zombie.TakeDamage(damage);
-                damaged.Add(root);
                 continue;
             }
 
-            BossBehavior boss = root.GetComponent<BossBehavior>();
+            if (zombie != null)
+            {
+                zombie.TakeDamage(damage);
+                damaged.Add(target);
+                continue;
+            }
+
             if (boss != null)
             {
                 boss.TakeDamage(damage);
-                damaged.Add(root);
+                damaged.Add(target);
             }
         }
     }
@@ -143,7 +162,13 @@ public class MeleeAttack : MonoBehaviour
     {
         damage += bonus;
         SetTint(new Color(1f, 0.1f, 0.1f));
-        yield return new WaitForSeconds(duration);
+        StrengthBoostRemaining = duration;
+        while (StrengthBoostRemaining > 0f)
+        {
+            StrengthBoostRemaining -= Time.deltaTime;
+            yield return null;
+        }
+        StrengthBoostRemaining = 0f;
         damage -= bonus;
         SetTint(Color.white);
     }
@@ -151,6 +176,8 @@ public class MeleeAttack : MonoBehaviour
     void SetTint(Color color)
     {
         foreach (Renderer r in playerRenderers)
+        {
             r.material.color = color;
+        }
     }
 }

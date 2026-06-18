@@ -1,7 +1,5 @@
 using UnityEngine;
 
-// Fixed-offset top-down follow camera. Set the camera's position/angle in the
-// editor relative to the player; this keeps that offset while following.
 public class CameraFollow : MonoBehaviour
 {
     public Transform target;
@@ -19,10 +17,12 @@ public class CameraFollow : MonoBehaviour
 
     void LateUpdate()
     {
-        if (target == null) return;
+        if (target == null)
+        {
+            return;
+        }
 
         Vector3 desiredPosition = target.position + offset;
-        transform.position = Vector3.Lerp(transform.position, desiredPosition,
-                                          smoothSpeed * Time.deltaTime);
+        transform.position = Vector3.Lerp(transform.position, desiredPosition, smoothSpeed * Time.deltaTime);
     }
 }

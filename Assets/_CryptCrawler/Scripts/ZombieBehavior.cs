@@ -3,10 +3,6 @@ using UnityEngine.AI;
 using UnityEngine.UI;
 using System.Collections;
 
-// Zombie enemy for Crypt Crawler. NavMeshAgent chase, interval contact damage,
-// floating health bar, death animation (falls back to a shrink tween if no
-// "die" state exists), and kill notification to the DungeonManager so the key
-// can spawn once the room is cleared.
 [RequireComponent(typeof(NavMeshAgent))]
 public class ZombieBehavior : MonoBehaviour
 {
@@ -19,11 +15,11 @@ public class ZombieBehavior : MonoBehaviour
     public float damageInterval = 1f;
 
     [Header("Health Bar")]
-    public Slider healthBar;             // world-space slider above the head
+    public Slider healthBar;
 
     [Header("Death")]
-    public float deathAnimTime = 2f;     // match the Dying clip length
-    public float deathShrinkTime = 0.35f; // fallback tween if no death anim
+    public float deathAnimTime = 2f;
+    public float deathShrinkTime = 0.35f;
     public AudioClip deathSFX;
 
     [Header("Drops")]
@@ -60,7 +56,10 @@ public class ZombieBehavior : MonoBehaviour
 
     void Update()
     {
-        if (isDying || player == null) return;
+        if (isDying || player == null)
+        {
+            return;
+        }
 
         if (!DungeonManager.IsPlaying || !PlayerVitals.IsAlive)
         {
@@ -70,6 +69,7 @@ public class ZombieBehavior : MonoBehaviour
 
         agent.isStopped = false;
 
+        // stops the zombie from changing their path on every frame to improve performance
         repathTimer -= Time.deltaTime;
         if (repathTimer <= 0f)
         {
@@ -89,7 +89,10 @@ public class ZombieBehavior : MonoBehaviour
 
     void OnTriggerStay(Collider other)
     {
-        if (!other.CompareTag("Player")) return;
+        if (!other.CompareTag("Player"))
+        {
+            return;
+        }
 
         damageTimer += Time.deltaTime;
         if (damageTimer >= damageInterval)
@@ -101,7 +104,10 @@ public class ZombieBehavior : MonoBehaviour
 
     void DealContactDamage(Collider playerCollider)
     {
-        if (isDying) return;
+        if (isDying)
+        {
+            return;
+        }
 
         PlayerVitals vitals = playerCollider.GetComponent<PlayerVitals>();
         if (vitals != null)
@@ -112,7 +118,10 @@ public class ZombieBehavior : MonoBehaviour
 
     public void TakeDamage(int amount)
     {
-        if (isDying) return;
+        if (isDying)
+        {
+            return;
+        }
 
         currentHealth -= amount;
         currentHealth = Mathf.Clamp(currentHealth, 0, maxHealth);
@@ -130,7 +139,10 @@ public class ZombieBehavior : MonoBehaviour
 
     void Die()
     {
-        if (isDying) return;
+        if (isDying)
+        {
+            return;
+        }
         isDying = true;
 
         agent.isStopped = true;
@@ -146,25 +158,23 @@ public class ZombieBehavior : MonoBehaviour
             Instantiate(drop, transform.position + Vector3.up * 0.5f, Quaternion.identity);
         }
 
-        // Tell the manager so it can track remaining zombies / spawn the key.
         DungeonManager manager = FindAnyObjectByType<DungeonManager>();
         if (manager != null)
         {
             manager.ZombieKilled();
         }
 
-        // Stop interacting with the world while dying.
         Collider col = GetComponent<Collider>();
-        if (col != null) col.enabled = false;
+        if (col != null)
+        {
+            col.enabled = false;
+        }
 
-        // Hide the health bar on death.
         if (healthBar != null)
         {
             healthBar.gameObject.SetActive(false);
         }
 
-        // Play the death animation if the Animator has a "die" trigger;
-        // otherwise fall back to the shrink tween.
         if (animator != null && HasParameter(animator, "die"))
         {
             animator.SetTrigger("die");
@@ -180,7 +190,10 @@ public class ZombieBehavior : MonoBehaviour
     {
         foreach (AnimatorControllerParameter parameter in anim.parameters)
         {
-            if (parameter.name == paramName) return true;
+            if (parameter.name == paramName)
+            {
+                return true;
+            }
         }
         return false;
     }

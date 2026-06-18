@@ -1,10 +1,6 @@
 using UnityEngine;
 using System.Collections;
 
-// Top-down player controller for Crypt Crawler.
-// WASD movement relative to the camera's facing; the character rotates to face
-// its movement direction. While attacking, MeleeAttack rotates the player to
-// face the mouse instead (see FaceMouseLock).
 [RequireComponent(typeof(CharacterController))]
 public class CrawlerController : MonoBehaviour
 {
@@ -20,9 +16,8 @@ public class CrawlerController : MonoBehaviour
     private float verticalVelocity;
     private Renderer[] playerRenderers;
 
-    // While true, movement does NOT rotate the character (MeleeAttack owns
-    // facing during a swing so the player attacks toward the mouse).
     public bool FaceMouseLock { get; set; }
+    public float SpeedBoostRemaining { get; private set; } = 0f;
 
     void Start()
     {
@@ -38,7 +33,10 @@ public class CrawlerController : MonoBehaviour
 
     void Update()
     {
-        if (!DungeonManager.IsPlaying) return;
+        if (!DungeonManager.IsPlaying)
+        {
+            return;
+        }
 
         float horizontal = Input.GetAxis("Horizontal");
         float vertical = Input.GetAxis("Vertical");
@@ -46,7 +44,6 @@ public class CrawlerController : MonoBehaviour
         Vector3 input = new Vector3(horizontal, 0f, vertical);
         input = Vector3.ClampMagnitude(input, 1f);
 
-        // Make input relative to where the camera is looking (flattened).
         Vector3 camForward = cameraTransform.forward;
         camForward.y = 0f;
         camForward.Normalize();
@@ -56,7 +53,6 @@ public class CrawlerController : MonoBehaviour
 
         Vector3 moveDirection = camForward * input.z + camRight * input.x;
 
-        // Rotate the character to face movement (unless an attack owns facing).
         if (moveDirection.sqrMagnitude > 0.001f && !FaceMouseLock)
         {
             float targetAngle = Mathf.Atan2(moveDirection.x, moveDirection.z) * Mathf.Rad2Deg;
@@ -65,7 +61,6 @@ public class CrawlerController : MonoBehaviour
             transform.rotation = Quaternion.Euler(0f, smoothAngle, 0f);
         }
 
-        // Simple gravity so the controller stays grounded on uneven floors.
         if (controller.isGrounded)
         {
             verticalVelocity = -1f;
@@ -82,14 +77,19 @@ public class CrawlerController : MonoBehaviour
         Vector3 velocity = moveDirection * speed + Vector3.up * verticalVelocity;
         controller.Move(velocity * Time.deltaTime);
 
-        // Drive the Animator: 0 = idle, 1 = run. MeleeAttack sets the attack trigger.
         if (animator != null)
         {
-            animator.SetInteger("animState", moveDirection.sqrMagnitude > 0.001f ? 1 : 0);
+            if (moveDirection.sqrMagnitude > 0.001f)
+            {
+                animator.SetInteger("animState", 1);
+            }
+            else
+            {
+                animator.SetInteger("animState", 0);
+            }
         }
     }
 
-    // Rotate instantly to face a world-space point (used by MeleeAttack).
     public void FacePoint(Vector3 worldPoint)
     {
         Vector3 lookDirection = worldPoint - transform.position;
@@ -99,7 +99,7 @@ public class CrawlerController : MonoBehaviour
             transform.rotation = Quaternion.LookRotation(lookDirection);
         }
     }
-    
+
     public void ApplySpeedBoost(float multiplier, float duration)
     {
         StartCoroutine(SpeedBoostRoutine(multiplier, duration));
@@ -109,7 +109,13 @@ public class CrawlerController : MonoBehaviour
     {
         speed *= multiplier;
         SetTint(new Color(0.6f, 0f, 1f));
-        yield return new WaitForSeconds(duration);
+        SpeedBoostRemaining = duration;
+        while (SpeedBoostRemaining > 0f)
+        {
+            SpeedBoostRemaining -= Time.deltaTime;
+            yield return null;
+        }
+        SpeedBoostRemaining = 0f;
         speed /= multiplier;
         SetTint(Color.white);
     }
@@ -117,6 +123,8 @@ public class CrawlerController : MonoBehaviour
     void SetTint(Color color)
     {
         foreach (Renderer r in playerRenderers)
+        {
             r.material.color = color;
+        }
     }
 }

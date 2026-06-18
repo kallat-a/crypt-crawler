@@ -1,23 +1,9 @@
 using UnityEngine;
 using UnityEngine.AI;
 using UnityEngine.UI;
+using TMPro;
 using System.Collections.Generic;
 
-// Boss for Crypt Crawler — the guardian of the Doors of Heaven.
-//
-// Fight design (always-aggressive):
-//  - Immediately walks toward the player (slow, lumbering) for the whole fight.
-// Fight design (ranged chaser):
-//  - Walks toward the player the whole fight to close distance for clean shots.
-//  - Fires a projectile on a cooldown. No melee, no contact damage — touching
-//    the boss is safe; the projectiles are the only direct threat.
-//  - Summons waves of weak zombies: a new wave only starts after the previous
-//    wave is fully cleared AND a cooldown passes.
-//  - On death it tells the DungeonManager, which drops the key and unlocks the
-//    exit gate (same win flow as Level 1).
-//
-// Needs: NavMeshAgent, Animator with bool "moving" and triggers
-// "cast", "summon", "die". A floating health bar (world-space slider).
 [RequireComponent(typeof(NavMeshAgent))]
 public class BossBehavior : MonoBehaviour
 {
@@ -26,7 +12,7 @@ public class BossBehavior : MonoBehaviour
     public Slider healthBar;
 
     [Header("Movement")]
-    public float walkSpeed = 1.8f;      // slow, lumbering chase
+    public float walkSpeed = 1.8f;
     public float repathInterval = 0.3f;
 
     [Header("Projectile (ranged attack)")]
@@ -38,10 +24,13 @@ public class BossBehavior : MonoBehaviour
 
     [Header("Summon (wave-based)")]
     public GameObject weakZombiePrefab;
-    public int waveSize = 3;             // zombies per wave
-    public float waveCooldown = 6f;      // delay AFTER a wave is fully cleared
+    public int waveSize = 3;
+    public float waveCooldown = 10f;
     public float summonWindup = 1f;
     public bool summonFirstWaveImmediately = true;
+
+    [Header("Wave UI")]
+    public TMP_Text waveText;
 
     [Header("Death")]
     public float deathAnimTime = 3.5f;
@@ -55,15 +44,14 @@ public class BossBehavior : MonoBehaviour
     private int currentHealth;
 
     private bool isDying = false;
-    private bool busy = false;           // mid cast/summon (rooted)
+    private bool busy = false;
+    private bool summoning = false;
 
     private float repathTimer = 0f;
     private float castTimer = 0f;
 
-    // Wave state: a new wave only starts after the previous wave is fully
-    // cleared AND a cooldown elapses.
-    private bool waveActive = false;     // a wave is currently alive
     private float waveCooldownTimer = 0f;
+    private int wavesSummoned = 0;
 
     private readonly List<GameObject> summoned = new List<GameObject>();
 
@@ -81,55 +69,74 @@ public class BossBehavior : MonoBehaviour
             healthBar.value = currentHealth;
         }
 
-        GameObject playerObject = GameObject.FindGameObjectWithTag("Player");
-        if (playerObject != null) player = playerObject.transform;
+        if (waveText == null)
+        {
+            GameObject waveTextObject = GameObject.Find("WaveText");
+            if (waveTextObject != null)
+            {
+                waveText = waveTextObject.GetComponent<TMP_Text>();
+            }
+        }
 
-        // Stagger cast so it doesn't fire on the very first frame.
+        GameObject playerObject = GameObject.FindGameObjectWithTag("Player");
+        if (playerObject != null)
+        {
+            player = playerObject.transform;
+        }
+
+        // initialize a cast timer so the boss doesn't fire as soon as it spawns
         castTimer = castCooldown;
-        // First wave can fire almost immediately if enabled.
-        waveCooldownTimer = summonFirstWaveImmediately ? 1f : waveCooldown;
+
+        if (summonFirstWaveImmediately)
+        {
+            // a short delay before first wave instead of waiting for the full cooldown
+            waveCooldownTimer = 1f;
+        }
+        else
+        {
+            waveCooldownTimer = waveCooldown;
+        }
     }
 
     void Update()
     {
-        if (isDying || player == null) return;
+        if (isDying || player == null)
+        {
+            return;
+        }
 
         if (!DungeonManager.IsPlaying || !PlayerVitals.IsAlive)
         {
             agent.isStopped = true;
-            if (animator != null) animator.SetBool("moving", false);
+            if (animator != null)
+            {
+                animator.SetBool("moving", false);
+            }
+            UpdateWaveText();
             return;
         }
 
         FacePlayer();
 
-        // Tick cooldowns.
         castTimer -= Time.deltaTime;
-
-        // Wave tracking: if a wave is active, check whether it's been cleared.
-        if (waveActive && CountSummoned() == 0)
-        {
-            waveActive = false;
-            waveCooldownTimer = waveCooldown; // start the post-clear cooldown
-        }
-        if (!waveActive)
-        {
-            waveCooldownTimer -= Time.deltaTime;
-        }
+        waveCooldownTimer -= Time.deltaTime;
+        UpdateWaveText();
 
         if (busy)
         {
             agent.isStopped = true;
-            if (animator != null) animator.SetBool("moving", false);
+            if (animator != null)
+            {
+                animator.SetBool("moving", false);
+            }
             return;
         }
 
-        // Cast on cooldown; otherwise summon a wave when ready; otherwise chase.
         if (castTimer <= 0f)
         {
             StartCoroutine(CastRoutine());
         }
-        else if (!waveActive && waveCooldownTimer <= 0f && weakZombiePrefab != null)
+        else if (waveCooldownTimer <= 0f && weakZombiePrefab != null)
         {
             StartCoroutine(SummonRoutine());
         }
@@ -148,7 +155,10 @@ public class BossBehavior : MonoBehaviour
             agent.SetDestination(player.position);
             repathTimer = repathInterval;
         }
-        if (animator != null) animator.SetBool("moving", true);
+        if (animator != null)
+        {
+            animator.SetBool("moving", true);
+        }
     }
 
     void FacePlayer()
@@ -173,7 +183,10 @@ public class BossBehavior : MonoBehaviour
             animator.SetBool("moving", false);
             animator.SetTrigger("cast");
         }
-        if (castSFX != null) AudioSource.PlayClipAtPoint(castSFX, transform.position);
+        if (castSFX != null)
+        {
+            AudioSource.PlayClipAtPoint(castSFX, transform.position);
+        }
 
         yield return new WaitForSeconds(castWindup);
 
@@ -188,6 +201,7 @@ public class BossBehavior : MonoBehaviour
             }
         }
 
+        // short pause after firing before the boss can act again
         yield return new WaitForSeconds(0.3f);
         busy = false;
     }
@@ -195,21 +209,27 @@ public class BossBehavior : MonoBehaviour
     System.Collections.IEnumerator SummonRoutine()
     {
         busy = true;
+        summoning = true;
         agent.isStopped = true;
+        UpdateWaveText();
 
         if (animator != null)
         {
             animator.SetBool("moving", false);
             animator.SetTrigger("summon");
         }
-        if (summonSFX != null) AudioSource.PlayClipAtPoint(summonSFX, transform.position);
+        if (summonSFX != null)
+        {
+            AudioSource.PlayClipAtPoint(summonSFX, transform.position);
+        }
 
         yield return new WaitForSeconds(summonWindup);
 
         if (!isDying && weakZombiePrefab != null)
         {
-            summoned.Clear();
-            for (int i = 0; i < waveSize; i++)
+            // every wave spawns more enemies than the previous one
+            int count = waveSize + wavesSummoned;
+            for (int i = 0; i < count; i++)
             {
                 Vector3 offset = new Vector3(Random.Range(-3f, 3f), 0f, Random.Range(-3f, 3f));
                 NavMeshHit hit;
@@ -218,39 +238,69 @@ public class BossBehavior : MonoBehaviour
                     summoned.Add(Instantiate(weakZombiePrefab, hit.position, Quaternion.identity));
                 }
             }
-            waveActive = true;
+            wavesSummoned++;
+            waveCooldownTimer = waveCooldown;
         }
 
+        summoning = false;
+        UpdateWaveText();
         yield return new WaitForSeconds(0.4f);
         busy = false;
     }
 
-    int CountSummoned()
+    void UpdateWaveText()
     {
-        summoned.RemoveAll(z => z == null);
-        return summoned.Count;
+        if (waveText == null || isDying)
+        {
+            return;
+        }
+
+        int nextWaveCount = waveSize + wavesSummoned;
+        if (summoning)
+        {
+            waveText.text = "Summoning: " + nextWaveCount + " mobs";
+            return;
+        }
+
+        int seconds = Mathf.Max(0, Mathf.CeilToInt(waveCooldownTimer));
+        waveText.text = "Next wave: " + seconds + "s / " + nextWaveCount + " mobs";
     }
 
     public void TakeDamage(int amount)
     {
-        if (isDying) return;
+        if (isDying)
+        {
+            return;
+        }
 
         currentHealth -= amount;
         currentHealth = Mathf.Clamp(currentHealth, 0, maxHealth);
-        if (healthBar != null) healthBar.value = currentHealth;
+        if (healthBar != null)
+        {
+            healthBar.value = currentHealth;
+        }
 
-        if (currentHealth <= 0) Die();
+        if (currentHealth <= 0)
+        {
+            Die();
+        }
     }
 
     void Die()
     {
-        if (isDying) return;
+        if (isDying)
+        {
+            return;
+        }
         isDying = true;
 
         agent.isStopped = true;
         StopAllCoroutines();
 
-        if (deathSFX != null) AudioSource.PlayClipAtPoint(deathSFX, transform.position);
+        if (deathSFX != null)
+        {
+            AudioSource.PlayClipAtPoint(deathSFX, transform.position);
+        }
         if (animator != null)
         {
             animator.SetBool("moving", false);
@@ -258,11 +308,24 @@ public class BossBehavior : MonoBehaviour
         }
 
         Collider col = GetComponent<Collider>();
-        if (col != null) col.enabled = false;
-        if (healthBar != null) healthBar.gameObject.SetActive(false);
+        if (col != null)
+        {
+            col.enabled = false;
+        }
+        if (healthBar != null)
+        {
+            healthBar.gameObject.SetActive(false);
+        }
+        if (waveText != null)
+        {
+            waveText.text = "";
+        }
 
         DungeonManager manager = FindAnyObjectByType<DungeonManager>();
-        if (manager != null) manager.BossDefeated(transform.position);
+        if (manager != null)
+        {
+            manager.BossDefeated(transform.position);
+        }
 
         Destroy(gameObject, deathAnimTime);
     }
