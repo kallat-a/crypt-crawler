@@ -1,10 +1,6 @@
 using UnityEngine;
 using System.Collections;
 
-// Top-down player controller for Crypt Crawler.
-// WASD movement relative to the camera's facing; the character rotates to face
-// its movement direction. While attacking, MeleeAttack rotates the player to
-// face the mouse instead (see FaceMouseLock).
 [RequireComponent(typeof(CharacterController))]
 public class CrawlerController : MonoBehaviour
 {
@@ -48,7 +44,6 @@ public class CrawlerController : MonoBehaviour
         Vector3 input = new Vector3(horizontal, 0f, vertical);
         input = Vector3.ClampMagnitude(input, 1f);
 
-        // Make input relative to where the camera is looking (flattened).
         Vector3 camForward = cameraTransform.forward;
         camForward.y = 0f;
         camForward.Normalize();
@@ -58,7 +53,6 @@ public class CrawlerController : MonoBehaviour
 
         Vector3 moveDirection = camForward * input.z + camRight * input.x;
 
-        // Rotate the character to face movement (unless an attack owns facing).
         if (moveDirection.sqrMagnitude > 0.001f && !FaceMouseLock)
         {
             float targetAngle = Mathf.Atan2(moveDirection.x, moveDirection.z) * Mathf.Rad2Deg;
@@ -67,7 +61,6 @@ public class CrawlerController : MonoBehaviour
             transform.rotation = Quaternion.Euler(0f, smoothAngle, 0f);
         }
 
-        // Simple gravity so the controller stays grounded on uneven floors.
         if (controller.isGrounded)
         {
             verticalVelocity = -1f;
@@ -84,7 +77,6 @@ public class CrawlerController : MonoBehaviour
         Vector3 velocity = moveDirection * speed + Vector3.up * verticalVelocity;
         controller.Move(velocity * Time.deltaTime);
 
-        // Drive the Animator: 0 = idle, 1 = run. MeleeAttack sets the attack trigger.
         if (animator != null)
         {
             if (moveDirection.sqrMagnitude > 0.001f)
@@ -98,7 +90,6 @@ public class CrawlerController : MonoBehaviour
         }
     }
 
-    // Rotate instantly to face a world-space point (used by MeleeAttack).
     public void FacePoint(Vector3 worldPoint)
     {
         Vector3 lookDirection = worldPoint - transform.position;
@@ -108,7 +99,7 @@ public class CrawlerController : MonoBehaviour
             transform.rotation = Quaternion.LookRotation(lookDirection);
         }
     }
-    
+
     public void ApplySpeedBoost(float multiplier, float duration)
     {
         StartCoroutine(SpeedBoostRoutine(multiplier, duration));

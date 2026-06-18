@@ -2036,7 +2036,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: da4dd513b64e44197beffa244d95de3d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ZombieBehavior
-  maxHealth: 50
+  maxHealth: 100
   repathInterval: 0.25
   damage: 10
   damageInterval: 1

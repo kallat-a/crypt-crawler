@@ -7,16 +7,19 @@ public class PlayerVitals : MonoBehaviour
     public int maxHealth = 100;
     public Slider healthSlider;
     public AudioClip hurtSFX;
+    public float healthBarLerpSpeed = 5f;
 
     public static bool IsAlive { get; private set; }
 
     private int currentHealth;
+    private float displayedHealth;
     private Animator animator;
     private TMP_Text healthValueText;
 
     void Start()
     {
         currentHealth = maxHealth;
+        displayedHealth = currentHealth;
         IsAlive = true;
         animator = GetComponent<Animator>();
 
@@ -43,6 +46,18 @@ public class PlayerVitals : MonoBehaviour
             healthSlider.maxValue = maxHealth;
         }
         UpdateHealthSlider();
+    }
+
+    void Update()
+    {
+        if (healthSlider == null)
+        {
+            return;
+        }
+
+        // creates a smooth effect when health is added or removed by lerping the health bar to the actual health
+        displayedHealth = Mathf.Lerp(displayedHealth, currentHealth, healthBarLerpSpeed * Time.deltaTime);
+        healthSlider.value = displayedHealth;
     }
 
     public void TakeDamage(int amount)
@@ -82,7 +97,6 @@ public class PlayerVitals : MonoBehaviour
 
     void Die()
     {
-        // Play the death animation if the Animator has a "die" trigger.
         if (animator != null)
         {
             foreach (AnimatorControllerParameter parameter in animator.parameters)
@@ -106,7 +120,7 @@ public class PlayerVitals : MonoBehaviour
     {
         if (healthSlider != null)
         {
-            healthSlider.value = currentHealth;
+            healthSlider.value = displayedHealth;
         }
 
         if (healthValueText != null && healthValueText.gameObject.activeSelf)

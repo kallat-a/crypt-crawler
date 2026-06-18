@@ -16,8 +16,17 @@ public class PowerupHUD : MonoBehaviour
         crawler = FindAnyObjectByType<CrawlerController>();
         melee = FindAnyObjectByType<MeleeAttack>();
 
-        speedRow = transform.Find("SpeedRow")?.gameObject;
-        strengthRow = transform.Find("StrengthRow")?.gameObject;
+        Transform speedRowTransform = transform.Find("SpeedRow");
+        if (speedRowTransform != null)
+        {
+            speedRow = speedRowTransform.gameObject;
+        }
+
+        Transform strengthRowTransform = transform.Find("StrengthRow");
+        if (strengthRowTransform != null)
+        {
+            strengthRow = strengthRowTransform.gameObject;
+        }
 
         if (speedRow != null)
         {

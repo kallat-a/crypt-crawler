@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using UnityEngine.UI;
 
 public class PauseMenu : MonoBehaviour
 {
@@ -7,21 +8,35 @@ public class PauseMenu : MonoBehaviour
 
     private bool isPaused = false;
 
+    void Awake()
+    {
+        SetupButton("ResumeButton", Resume);
+        SetupButton("RestartButton", RestartLevel);
+        SetupButton("MainMenuButton", GoToMainMenu);
+    }
+
     void Update()
     {
         if (Input.GetKeyDown(KeyCode.Escape))
         {
             if (isPaused)
+            {
                 Resume();
+            }
             else if (DungeonManager.IsPlaying)
+            {
                 Pause();
+            }
         }
     }
 
     public void Pause()
     {
         isPaused = true;
-        pausePanel.SetActive(true);
+        if (pausePanel != null)
+        {
+            pausePanel.SetActive(true);
+        }
         Time.timeScale = 0f;
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
@@ -30,7 +45,10 @@ public class PauseMenu : MonoBehaviour
     public void Resume()
     {
         isPaused = false;
-        pausePanel.SetActive(false);
+        if (pausePanel != null)
+        {
+            pausePanel.SetActive(false);
+        }
         Time.timeScale = 1f;
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
@@ -46,5 +64,25 @@ public class PauseMenu : MonoBehaviour
     {
         Time.timeScale = 1f;
         SceneManager.LoadScene("MainMenu");
+    }
+
+    private void SetupButton(string buttonName, UnityEngine.Events.UnityAction action)
+    {
+        if (pausePanel == null)
+        {
+            return;
+        }
+
+        foreach (Button button in pausePanel.GetComponentsInChildren<Button>(true))
+        {
+            if (button.name != buttonName)
+            {
+                continue;
+            }
+
+            button.onClick.RemoveListener(action);
+            button.onClick.AddListener(action);
+            return;
+        }
     }
 }
